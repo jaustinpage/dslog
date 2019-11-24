@@ -14,11 +14,12 @@ import arrow
 import dslogparser
 
 
-DS_LOG_DEFAULT = {
-        'time': 0,
+def default_log(time):
+    return {
+        'time': time,
         'round_trip_time': 0,
         'packet_loss': 0, 
-        'voltage': 0,
+        'voltage': 255,
         'rio_cpu': 0,
         'can_usage': 0,
         'wifi_db': 0, 
@@ -38,7 +39,6 @@ DS_LOG_DEFAULT = {
         'pdp_temp': 0,
         'pdp_total_current': 0,
         }
-DSLog = collections.namedtuple('DSLog', DS_LOG_DEFAULT.keys(), defaults=DS_LOG_DEFAULT.values())
 
 
 class DSlogs():
@@ -61,9 +61,8 @@ class DSlogs():
             last_time = item['time']
             yield item
         while True:
-            log = BLANK_LOG
-            last_time = 
-            yield BLANK_LOG
+            last_time = arrow.get(last_time).shift(seconds=dslogparser.DSLOG_TIMESTEP).datetime
+            yield default_log(last_time)
 
     @staticmethod
     def _fix_time(gen):
@@ -97,7 +96,9 @@ class DSlogs():
                 continue
             yield window
 
-    def _items(self, gen, start=None, end=None, window=None):
+    def _items(self, gen, start=None, end=None, window=None, continuous=True):
+        if continuous:
+            gen = self._continuous(gen)
         gen = self._fix_time(gen)
         if window:
             gen = self._window(gen, start=start, end=end, items_per_window=window)
