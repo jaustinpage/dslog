@@ -56,13 +56,13 @@ class DSlogs():
 
     @staticmethod
     def _continuous(gen):
-        last_time = None
+        last_item = None
         for item in gen:
-            last_time = item['time']
+            last_item = item
             yield item
         while True:
-            last_time = arrow.get(last_time).shift(seconds=dslogparser.DSLOG_TIMESTEP).datetime
-            yield default_log(last_time)
+            last_item['time'] = arrow.get(last_item['time']).shift(seconds=dslogparser.DSLOG_TIMESTEP).datetime
+            yield last_item
 
     @staticmethod
     def _fix_time(gen):
@@ -78,6 +78,8 @@ class DSlogs():
         for item in gen:
             if item['time'].is_between(start, end, '[]'):
                 yield item
+            elif end < item['time']:
+                break
 
     def _window(self, gen, start, end, items_per_window):
         if not start:
@@ -96,7 +98,7 @@ class DSlogs():
                 continue
             yield window
 
-    def _items(self, gen, start=None, end=None, window=None, continuous=True):
+    def _items(self, gen, start=None, end=None, window=None, continuous=False):
         if continuous:
             gen = self._continuous(gen)
         gen = self._fix_time(gen)
@@ -113,14 +115,18 @@ class DSlogs():
             for item in gen:
                 yield item
 
-    def logs(self, start=None, end=None, window=None):
+    def logs(self, start=None, end=None, window=None, continuous=False):
         return self._items(self._log_parser.read_records(), start, end, window)
 
-    def events(self, start=None, end=None, window=None):
+    def events(self, start=None, end=None, window=None, continuous=False):
         return self._items(self._event_parser.read_records(), start, end, window)
 
     def match_info(self):
         field_time, match = self._event_parser.match_info
-        if field_time:
-            field_time = arrow.get(field_time)
-        return field_time, match
+        start_time = None
+        for log in self.logs(start=field_time):
+            if log['ds_auto']:
+                start_time = log['time']
+                break
+
+        return start_time, match
