@@ -122,7 +122,10 @@ class DSlogs():
         return self._items(self._event_parser.read_records(), start, end, window)
 
     def match_info(self):
-        field_time, match = self._event_parser.match_info
+        match_data = self._event_parser.find_match_info(self.eventpath)
+        print(match_data)
+        field_time = arrow.get(match_data['field_time'])
+        match = match_data['match_name']
         start_time = None
         for log in self.logs(start=field_time):
             if log['ds_auto']:
